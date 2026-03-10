@@ -86,7 +86,7 @@ bash git-setup.sh
 
 已包含内容：
 
-- **`.gitignore`**：忽略 `backend/target/`、`frontend/node_modules/`、IDE 与本地敏感配置等
+- **`.gitignore`**：忽略 `backend/target/`、**`frontend/node_modules/`**（不会上传前端依赖）、IDE 与本地敏感配置等
 - **`.gitattributes`**：统一换行符（LF），避免跨平台差异
 - **本仓库配置**：默认分支 `main`、`core.autocrlf false`；脚本会提示设置 `user.name` 与 `user.email`
 
