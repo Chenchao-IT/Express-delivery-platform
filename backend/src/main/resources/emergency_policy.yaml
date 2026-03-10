@@ -1,0 +1,29 @@
+# 文档 3.2：紧急通行证策略（独立 YAML，可与 application.yml 中 emergency 合并或单独引用）
+# DB 不可用时降级放行策略
+
+emergency:
+  enabled: false
+  mode: readonly
+  db_health:
+    check_interval: 5000
+    failure_threshold: 3
+    recovery_threshold: 10
+  policies:
+    - path: /api/auth/me
+      methods: [GET]
+      allowed_in_emergency: true
+      required_claims: [sub]
+      permission: user:emergency_view
+    - path: /api/actuator/health
+      methods: [GET]
+      allowed_in_emergency: true
+      allowed_for_all: true
+    - path: /api/actuator/info
+      methods: [GET]
+      allowed_in_emergency: true
+      allowed_for_all: true
+  jwt_validation:
+    require_signature: true
+    require_expiry: true
+    require_issuer: false
+    require_audience: false

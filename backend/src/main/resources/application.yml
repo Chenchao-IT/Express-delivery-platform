@@ -1,0 +1,111 @@
+spring:
+  application:
+    name: campus-express-delivery
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_express?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: cc200309  # 与 Navicat MY 连接密码一致，或设环境变量
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+  # 文档 3.1：Spring Data Redis（与下方 redis 配置对应，可设 redis.host= 禁用）
+  data:
+    redis:
+      host: ${redis.host:localhost}
+      port: ${redis.port:6379}
+      password: ${redis.password:}
+      connect-timeout: 3s
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# JWT 配置（文档 1.2：无状态鉴权 signingKey）
+jwt:
+  secret: campus-delivery-secret-2023
+  expiration: 86400000  # 24小时(毫秒)
+
+# Redis 配置（文档 3.1：缓存一致性）。无 Redis 时请用 profile no-redis 启动：--spring.profiles.active=no-redis
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: 6379
+  password: ${REDIS_PASSWORD:}
+  timeout: 3000
+  database: 0
+  listener:
+    enabled: true
+    config: "KEA"  # K:keyspace, E:keyevent, A:all events
+
+# 文档 5.1/5.2：SLA 监控（加载 sla-monitoring.yml 并做合规检查）
+sla:
+  monitoring:
+    enabled: true
+    check-interval: 60000   # 每分钟检查 auth.login P99
+
+# 文档 五：Actuator + Prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 文档 3.2：紧急通行证策略（DB 不可用时降级放行）
+emergency:
+  enabled: false
+  mode: readonly
+  db_health:
+    check_interval: 5000
+    failure_threshold: 3
+    recovery_threshold: 10
+  policies:
+    - path: /api/auth/me
+      methods: [GET]
+      allowed_in_emergency: true
+      required_claims: [sub]
+      permission: user:emergency_view
+    - path: /api/actuator/health
+      methods: [GET]
+      allowed_in_emergency: true
+      allowed_for_all: true
+    - path: /api/actuator/info
+      methods: [GET]
+      allowed_in_emergency: true
+      allowed_for_all: true
+  jwt_validation:
+    require_signature: true
+    require_expiry: true
+    require_issuer: false
+    require_audience: false
+  # 文档 3.2：本地写存储（紧急模式下写队列，恢复时回放）
+  local_writes:
+    enabled: true
+    sync_on_recovery: true
+    max_pending: 1000
+
+# 跨域配置
+cors:
+  allowed-origins: http://localhost:5173
+  allowed-methods: "*"
+  allowed-headers: "*"
+  max-age: 3600

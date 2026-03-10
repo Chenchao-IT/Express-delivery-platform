@@ -1,0 +1,75 @@
+# 文档 6.2：Kubernetes Deployment - 校园快递认证服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campus-delivery-auth
+  namespace: campus-delivery
+  labels:
+    app: campus-delivery-auth
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: campus-delivery-auth
+  template:
+    metadata:
+      labels:
+        app: campus-delivery-auth
+        version: v1.0.0
+    spec:
+      containers:
+      - name: auth-service
+        image: registry.example.com/campus-delivery/auth:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: redis.host
+              optional: true
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
+              optional: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: local-storage
+          mountPath: /app/data
+      volumes:
+      - name: config-volume
+        configMap:
+          name: auth-config
+          optional: true
+      - name: local-storage
+        emptyDir: {}

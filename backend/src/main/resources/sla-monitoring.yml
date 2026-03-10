@@ -1,0 +1,40 @@
+# 文档 5.1：性能指标定义 - 与《登录注册实现方案》第五章对齐
+# 供 SlaMonitoringService 或外部监控系统加载（当前项目以 Micrometer + Prometheus 为主，本文件为配置参考）
+
+sla:
+  # 响应时间 SLA（毫秒）
+  response_time:
+    p99:
+      auth_login: 150     # 登录接口 P99 < 150ms
+      token_validate: 50  # Token 验证 < 50ms
+      order_create: 200   # 订单创建 < 200ms
+      location_report: 100 # 定位上报 < 100ms
+    p95:
+      auth_login: 100
+      token_validate: 30
+      order_create: 150
+      location_report: 70
+
+  # 吞吐量 SLA
+  throughput:
+    auth_login: 1000      # 登录接口 1000 QPS
+    token_validate: 5000  # Token 验证 5000 QPS
+    location_report: 3000 # 定位上报 3000 QPS
+
+  # 可用性 SLA（百分比）
+  availability:
+    auth_service: 99.95   # 认证服务可用性 99.95%
+    order_service: 99.9   # 订单服务可用性 99.9%
+    overall: 99.9         # 整体可用性 99.9%
+
+  # 业务 SLA
+  business:
+    login_success_rate: 99.5    # 登录成功率 > 99.5%
+    order_create_success: 99   # 订单创建成功率 > 99%
+    emergency_mode_recovery: 300 # 紧急模式恢复时间 < 5 分钟（秒）
+
+  # 安全 SLA
+  security:
+    captcha_success_rate: 98    # 验证码成功率 > 98%
+    fraud_detection_delay: 60   # 欺诈检测延迟 < 60 秒
+    location_verify_delay: 10   # 定位验证延迟 < 10 秒

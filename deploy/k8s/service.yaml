@@ -1,0 +1,17 @@
+# 文档 6.2：Kubernetes Service - 校园快递认证服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: campus-delivery-auth
+  namespace: campus-delivery
+  labels:
+    app: campus-delivery-auth
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: campus-delivery-auth
