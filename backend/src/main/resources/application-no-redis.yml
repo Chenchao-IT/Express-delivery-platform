@@ -1,0 +1,11 @@
+# 无 Redis 时启动：不连接 Redis，登录版本号校验不生效（JWT 仅校验签名与过期）
+# 使用方式：mvn spring-boot:run -Dspring-boot.run.profiles=no-redis
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+  data:
+    redis:
+      host: ""
+redis:
+  host: ""

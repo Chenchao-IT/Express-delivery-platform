@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand: #0066DB;
+  --color-brand-hover: #0756B0;
+  --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+body {
+  font-family: var(--font-outfit);
+  color: #171E26;
+  background-color: #FAFAFA;
+}
+
+/* 设计规范 - 输入框 */
+.input-base {
+  @apply h-10 px-4 rounded-input border border-fill-border;
+  @apply bg-white text-text-primary;
+  @apply focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+  @apply disabled:bg-fill-disabled disabled:text-text-disabled disabled:cursor-not-allowed;
+}
+
+/* 设计规范 - 主按钮 */
+.btn-primary {
+  @apply px-4 py-2.5 rounded-button font-normal text-white text-sm;
+  @apply bg-brand hover:bg-brand-hover;
+  @apply transition-colors duration-200;
+}
+
+/* 设计规范 - 次要按钮 */
+.btn-secondary {
+  @apply px-4 py-2.5 rounded-button font-normal text-sm;
+  @apply bg-white text-text-primary border border-fill-border;
+  @apply hover:bg-fill-hover transition-colors duration-200;
+}
+
+/* 无障碍：高对比度主题（文档 3.2） */
+.theme-high-contrast {
+  --color-brand: #0066DB;
+  --color-text: #000000;
+  --color-bg: #FFFFFF;
+}
+.theme-high-contrast body,
+.theme-high-contrast .bg-white { background: #FFFFFF !important; }
+.theme-high-contrast .text-text-primary { color: #000000 !important; }
+.theme-high-contrast .text-text-secondary { color: #333333 !important; }
+.theme-high-contrast .border-fill-border { border-color: #000000 !important; }
+
+.theme-dark-high-contrast {
+  --color-brand: #4DA6FF;
+  --color-text: #FFFFFF;
+  --color-bg: #000000;
+}
+.theme-dark-high-contrast body,
+.theme-dark-high-contrast .bg-fill-disabled { background: #000000 !important; }
+.theme-dark-high-contrast .bg-white { background: #1a1a1a !important; }
+.theme-dark-high-contrast .text-text-primary,
+.theme-dark-high-contrast .text-text-secondary { color: #FFFFFF !important; }
+
+.theme-yellow-black {
+  --color-brand: #FFD700;
+  --color-text: #000000;
+  --color-bg: #FFFF00;
+}
+.theme-yellow-black body { background: #FFFF00 !important; }
+.theme-yellow-black .bg-white { background: #FFFACD !important; }
+.theme-yellow-black .text-text-primary { color: #000000 !important; }
+
+/* 屏幕阅读器专用（文档 3.2） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

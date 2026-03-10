@@ -1,0 +1,61 @@
+# 文档 6.3：Prometheus 告警规则 - 与《登录注册实现方案》6.3 对齐
+# 需配合 Micrometer Prometheus 指标名（如 api_response_time_seconds、api_error_count 等）
+groups:
+- name: campus-delivery-auth
+  rules:
+  - alert: HighErrorRate
+    expr: |
+      sum(rate(http_server_requests_seconds_count{uri=~".*", status=~"5.."}[5m])) by (uri)
+      /
+      sum(rate(http_server_requests_seconds_count{uri=~".*"}[5m])) by (uri)
+      > 0.05
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "高错误率告警"
+      description: "{{ $labels.uri }} 接口错误率超过5%，当前值: {{ $value | humanizePercentage }}"
+
+  - alert: SlowResponseTime
+    expr: |
+      histogram_quantile(0.99,
+        sum(rate(auth_login_seconds_bucket[5m])) by (le)
+      ) > 0.15
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "慢响应告警"
+      description: "登录接口 P99 响应时间超过150ms，当前值: {{ $value }}s"
+
+  - alert: DatabaseSlow
+    expr: |
+      histogram_quantile(0.95,
+        sum(rate(db_health_check_seconds_bucket[5m])) by (le)
+      ) > 1
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "数据库响应缓慢"
+      description: "数据库健康检查响应时间超过1秒，当前值: {{ $value }}s"
+
+  - alert: EmergencyModeActive
+    expr: system_emergency_mode_active > 0
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: "系统进入紧急模式"
+      description: "系统已进入紧急模式，数据库可能不可用"
+  # 注：system_emergency_mode_active 需应用暴露（如 Gauge）；当前未实现时可注释此条
+
+  - alert: HighMemoryUsage
+    expr: |
+      (container_memory_usage_bytes{container="auth-service"} / container_spec_memory_limit_bytes{container="auth-service"}) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "内存使用率过高"
+      description: "认证服务内存使用率超过80%，当前值: {{ $value | humanizePercentage }}"
