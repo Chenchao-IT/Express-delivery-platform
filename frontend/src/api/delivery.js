@@ -13,3 +13,15 @@ export const assignCourier = (id, courierId) => request.put(`/deliveries/${id}/a
 export const completeDelivery = (id) => request.put(`/deliveries/${id}/complete`)
 export const getDestinations = () => request.get('/deliveries/destinations')
 
+// =========================
+// 悬赏代取（学生发布/学生或快递员接单）
+// =========================
+export const listPendingRewardTasks = () => request.get('/deliveries/reward/pending')
+export const listMyRewardTasks = () => request.get('/deliveries/reward/my')
+export const listPublishedRewardTasks = () => request.get('/deliveries/reward/published')
+export const publishRewardTask = (packageId, destination, rewardAmount) =>
+  request.post('/deliveries/reward/publish', { packageId, destination, rewardAmount })
+export const acceptRewardTask = (id) => request.put(`/deliveries/reward/${id}/accept`)
+export const cancelRewardTask = (id) => request.put(`/deliveries/reward/${id}/cancel`)
+export const completeRewardTask = (id) => request.put(`/deliveries/reward/${id}/complete`)
+

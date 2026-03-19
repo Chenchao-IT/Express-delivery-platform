@@ -33,6 +33,29 @@ public class DeliveryController {
         return ResponseEntity.ok(deliveryService.findPendingForGrab());
     }
 
+    /** 悬赏任务大厅：待接单列表（学生/快递员可见） */
+    @GetMapping("/reward/pending")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
+    public ResponseEntity<List<DeliveryTask>> listPendingRewards() {
+        return ResponseEntity.ok(deliveryService.listPendingRewardTasks());
+    }
+
+    /** 我接到的悬赏任务（学生/快递员可见） */
+    @GetMapping("/reward/my")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
+    public ResponseEntity<List<DeliveryTask>> listMyRewards(
+            @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.listMyRewardTasks(user.getUsername()));
+    }
+
+    /** 我发布的悬赏任务（学生可见） */
+    @GetMapping("/reward/published")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<DeliveryTask>> listPublishedRewards(
+            @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.listPublishedRewardTasks(user.getUsername()));
+    }
+
     /** 我的配送任务（快递员可见） */
     @GetMapping("/my")
     @PreAuthorize("hasRole('COURIER')")
@@ -68,6 +91,19 @@ public class DeliveryController {
         return ResponseEntity.ok(task);
     }
 
+    /** 学生发布悬赏代取 */
+    @PostMapping("/reward/publish")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<DeliveryTask> publishReward(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails user) {
+        Long packageId = Long.valueOf(request.get("packageId").toString());
+        String destination = request.get("destination").toString();
+        java.math.BigDecimal rewardAmount = new java.math.BigDecimal(request.get("rewardAmount").toString());
+        return ResponseEntity.ok(deliveryService.publishRewardTask(
+            packageId, destination, rewardAmount, user.getUsername()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> createDelivery(@RequestBody Map<String, Object> request) {
@@ -75,6 +111,33 @@ public class DeliveryController {
         String destination = request.get("destination").toString();
         DeliveryTask task = deliveryService.createDeliveryTask(packageId, destination);
         return ResponseEntity.ok(task);
+    }
+
+    /** 悬赏任务接单（学生/快递员） */
+    @PutMapping("/reward/{id}/accept")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
+    public ResponseEntity<DeliveryTask> acceptReward(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.acceptRewardTask(id, user.getUsername()));
+    }
+
+    /** 悬赏任务取消（发布者） */
+    @PutMapping("/reward/{id}/cancel")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<DeliveryTask> cancelReward(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.cancelRewardTask(id, user.getUsername()));
+    }
+
+    /** 悬赏任务完成并结算（接单人） */
+    @PutMapping("/reward/{id}/complete")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
+    public ResponseEntity<DeliveryTask> completeReward(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.completeRewardTask(id, user.getUsername()));
     }
 
     /** 快递员抢单：将待分配任务抢为自己执行 */

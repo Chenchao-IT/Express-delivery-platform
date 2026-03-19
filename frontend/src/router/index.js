@@ -34,6 +34,11 @@ const routes = [
         component: () => import('@/views/TrackView.vue'),
       },
       {
+        path: 'tasks',
+        name: 'TaskHall',
+        component: () => import('@/views/TaskHallView.vue'),
+      },
+      {
         path: 'appeal',
         name: 'Appeal',
         component: () => import('@/views/AppealView.vue'),
@@ -43,6 +48,12 @@ const routes = [
         name: 'AdminPackages',
         component: () => import('@/views/admin/PackageManageView.vue'),
         meta: { roles: ['ADMIN', 'COURIER'] },
+      },
+      {
+        path: 'admin/dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/AdminDashboardView.vue'),
+        meta: { roles: ['ADMIN'] },
       },
       {
         path: 'admin/deliveries',

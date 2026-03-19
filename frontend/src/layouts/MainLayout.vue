@@ -79,6 +79,7 @@ const navItems = computed(() => {
     { path: '/', label: '包裹中心' },
     { path: '/packages', label: '我的包裹' },
     { path: '/track', label: '快递查询' },
+    { path: '/tasks', label: '任务大厅' },
   ]
   if (authStore.user?.conflictResolutionRequired) {
     items.push({ path: '/appeal', label: '身份申诉' })
@@ -88,6 +89,7 @@ const navItems = computed(() => {
     items.push({ path: '/admin/deliveries', label: '配送管理' })
   }
   if (authStore.isAdmin) {
+    items.push({ path: '/admin/dashboard', label: '管理大屏' })
     items.push({ path: '/admin/users', label: '用户管理' })
     items.push({ path: '/admin/appeals', label: '申诉审核' })
   }

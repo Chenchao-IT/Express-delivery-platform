@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# InsightBoard
-InsightBoard（博客创作 + 数据后台 + AI 辅助）
-=======
 # 校园快递配送系统
 
 基于 Vue.js + Java Spring Boot + MySQL 技术栈实现的校园智能物流配送系统，符合设计规范与项目方案文档。
@@ -123,4 +119,3 @@ code/
 | 上门配送流程 | `backend/.../service/DeliveryService.java` |
 | 包裹入库/取件 | `backend/.../service/PackageService.java` |
 | 数据库 E-R 设计 | `database/schema.sql` |
->>>>>>> master

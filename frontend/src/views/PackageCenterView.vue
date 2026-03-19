@@ -32,7 +32,7 @@
     <!-- 主内容：统计、包裹列表、成就等 -->
     <template v-if="!loading">
       <!-- 统计卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div
           class="bg-white rounded-card shadow-card p-5 flex items-center gap-4"
           role="region"
@@ -70,6 +70,38 @@
           <div>
             <p class="text-2xl font-bold text-text-primary">{{ stats.deliveredCount }}</p>
             <p class="text-text-secondary text-sm">已送达</p>
+          </div>
+        </div>
+
+        <div
+          class="bg-white rounded-card shadow-card p-5 flex items-center gap-4"
+          role="region"
+          aria-label="钱包余额"
+        >
+          <div class="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center">
+            <span class="text-xl">💰</span>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-text-primary font-mono">
+              {{ wallet ? Number(wallet.balance || 0).toFixed(2) : '-' }}
+            </p>
+            <p class="text-text-secondary text-sm">余额（元）</p>
+          </div>
+        </div>
+
+        <div
+          class="bg-white rounded-card shadow-card p-5 flex items-center gap-4"
+          role="region"
+          aria-label="钱包冻结"
+        >
+          <div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+            <span class="text-xl">🧊</span>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-warning-text font-mono">
+              {{ wallet ? Number(wallet.frozen || 0).toFixed(2) : '-' }}
+            </p>
+            <p class="text-text-secondary text-sm">冻结（元）</p>
           </div>
         </div>
       </div>
@@ -137,6 +169,14 @@
                 class="btn-secondary text-sm"
               >
                 预约配送
+              </button>
+              <button
+                v-if="pkg.status === 'IN_STORAGE'"
+                @click="openRewardModal(pkg)"
+                :disabled="rewardLoading"
+                class="btn-secondary text-sm"
+              >
+                发布悬赏
               </button>
               <button
                 v-if="pkg.status === 'IN_STORAGE'"
@@ -320,6 +360,66 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 悬赏代取弹窗 -->
+    <Teleport to="body">
+      <div
+        v-if="showRewardModal"
+        class="fixed inset-0 z-modal-backdrop bg-black/50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reward-dialog-title"
+        @keydown.escape="showRewardModal = false"
+      >
+        <div class="bg-white rounded-card shadow-card max-w-md w-full p-6">
+          <h3 id="reward-dialog-title" class="font-semibold text-text-primary mb-4">
+            发布悬赏代取
+          </h3>
+          <p v-if="rewardPkg" class="text-text-secondary text-sm mb-4">
+            包裹 {{ rewardPkg.trackingNumber }} 将配送到您选择的地点，悬赏金额会被冻结，任务完成后结算给接单人。
+          </p>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-text-primary mb-2">配送目的地</label>
+            <select
+              v-model="rewardDestination"
+              class="input-base w-full"
+              aria-label="选择配送目的地"
+            >
+              <option value="">请选择目的地</option>
+              <option
+                v-for="d in deliveryDestinations"
+                :key="d"
+                :value="d"
+              >
+                {{ destinationLabel(d) }}
+              </option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-text-primary mb-2">悬赏金额（元）</label>
+            <input
+              v-model="rewardAmount"
+              class="input-base w-full"
+              inputmode="decimal"
+              placeholder="例如 3.00"
+              aria-label="输入悬赏金额"
+            />
+          </div>
+          <div class="flex gap-3 justify-end">
+            <button class="btn-secondary" @click="showRewardModal = false">
+              取消
+            </button>
+            <button
+              class="btn-primary"
+              :disabled="!rewardDestination || !rewardAmount || rewardLoading"
+              @click="doPublishReward"
+            >
+              {{ rewardLoading ? '发布中...' : '确认发布' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -327,7 +427,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { getHomeData, executeMergedPickup, getAchievements } from '@/api/packageCenter'
 import { pickupPackage as singlePickup } from '@/api/package'
-import { scheduleDelivery, getDestinations } from '@/api/delivery'
+import { scheduleDelivery, getDestinations, publishRewardTask } from '@/api/delivery'
+import { getMyWallet } from '@/api/wallet'
 
 const loading = ref(true)
 const homeData = ref(null)
@@ -341,7 +442,13 @@ const showScheduleModal = ref(false)
 const schedulePkg = ref(null)
 const scheduleDestination = ref('')
 const scheduleLoading = ref(false)
+const showRewardModal = ref(false)
+const rewardPkg = ref(null)
+const rewardDestination = ref('')
+const rewardAmount = ref('')
+const rewardLoading = ref(false)
 const deliveryDestinations = ref([])
+const wallet = ref(null)
 
 function speakPickupCode(pkg) {
   if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -421,6 +528,7 @@ const load = async () => {
     ])
     homeData.value = homeRes
     achievements.value = achieveRes
+    wallet.value = await getMyWallet()
   } catch (e) {
     console.error(e)
   } finally {
@@ -453,6 +561,21 @@ const openScheduleModal = async (pkg) => {
   }
 }
 
+const openRewardModal = async (pkg) => {
+  rewardPkg.value = pkg
+  rewardDestination.value = ''
+  rewardAmount.value = ''
+  showRewardModal.value = true
+  if (deliveryDestinations.value.length === 0) {
+    try {
+      const dests = await getDestinations()
+      deliveryDestinations.value = [...dests].filter((d) => d !== 'STATION_1')
+    } catch (e) {
+      deliveryDestinations.value = ['DORM_1', 'DORM_2', 'DORM_3', 'CAFETERIA']
+    }
+  }
+}
+
 const doScheduleDelivery = async () => {
   if (!schedulePkg.value || !scheduleDestination.value) return
   scheduleLoading.value = true
@@ -467,6 +590,29 @@ const doScheduleDelivery = async () => {
     alert(e.message || '预约失败')
   } finally {
     scheduleLoading.value = false
+  }
+}
+
+const doPublishReward = async () => {
+  if (!rewardPkg.value || !rewardDestination.value) return
+  const amt = Number(rewardAmount.value)
+  if (!Number.isFinite(amt) || amt <= 0) {
+    alert('请输入正确的悬赏金额（>0）')
+    return
+  }
+  rewardLoading.value = true
+  try {
+    await publishRewardTask(rewardPkg.value.id, rewardDestination.value, amt)
+    showRewardModal.value = false
+    rewardPkg.value = null
+    rewardDestination.value = ''
+    rewardAmount.value = ''
+    await load()
+    alert('悬赏发布成功，已冻结对应金额')
+  } catch (e) {
+    alert(e?.message || '发布失败')
+  } finally {
+    rewardLoading.value = false
   }
 }
 
