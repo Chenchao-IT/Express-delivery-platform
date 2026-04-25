@@ -23,11 +23,13 @@ public class PackageController {
     private final UserRepository userRepository;
 
     @GetMapping("/my")
-    public ResponseEntity<List<Package>> getMyPackages(
-            @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<List<Package>> getMyPackages(@AuthenticationPrincipal UserDetails user) {
         Long studentId = userRepository.findByUsername(user.getUsername())
-            .map(User::getId).orElse(null);
-        if (studentId == null) return ResponseEntity.ok(List.of());
+            .map(User::getId)
+            .orElse(null);
+        if (studentId == null) {
+            return ResponseEntity.ok(List.of());
+        }
         return ResponseEntity.ok(packageService.findByStudentId(studentId));
     }
 
@@ -40,20 +42,18 @@ public class PackageController {
 
     @PostMapping("/{id}/pickup")
     public ResponseEntity<Package> pickupPackage(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
-        Package pkg = packageService.pickupPackage(id, user.getUsername());
-        return ResponseEntity.ok(pkg);
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
+        return ResponseEntity.ok(packageService.pickupPackage(id, user.getUsername()));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
-    public ResponseEntity<List<Package>> listPackages(
-            @RequestParam(required = false) String status) {
+    public ResponseEntity<List<Package>> listPackages(@RequestParam(required = false) String status) {
         if (status != null && !status.isEmpty()) {
             try {
-                return ResponseEntity.ok(
-                    packageService.findByStatus(Package.PackageStatus.valueOf(status)));
+                return ResponseEntity.ok(packageService.findByStatus(Package.PackageStatus.valueOf(status)));
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
             }
@@ -63,15 +63,14 @@ public class PackageController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
-    public ResponseEntity<Package> createPackage(
-            @RequestBody Map<String, String> request,
-            @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<Package> createPackage(@RequestBody Map<String, String> request) {
         String studentUsername = request.get("studentUsername");
+        String trackingNumber = request.get("trackingNumber");
         String sizeStr = request.getOrDefault("size", "MEDIUM");
         String shelfCode = request.getOrDefault("shelfCode", "");
+
         Package.PackageSize size = Package.PackageSize.valueOf(sizeStr);
-        Package pkg = packageService.createPackage(studentUsername, size, shelfCode);
+        Package pkg = packageService.createPackage(studentUsername, trackingNumber, size, shelfCode);
         return ResponseEntity.ok(pkg);
     }
-
 }

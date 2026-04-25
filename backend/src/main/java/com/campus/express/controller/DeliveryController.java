@@ -2,6 +2,8 @@ package com.campus.express.controller;
 
 import com.campus.express.algorithm.CampusPathPlanningService;
 import com.campus.express.entity.DeliveryTask;
+import com.campus.express.entity.User;
+import com.campus.express.repository.UserRepository;
 import com.campus.express.service.DeliveryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,8 +12,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/deliveries")
@@ -20,58 +25,49 @@ public class DeliveryController {
 
     private final DeliveryService deliveryService;
     private final CampusPathPlanningService pathPlanningService;
+    private final UserRepository userRepository;
 
     @GetMapping("/destinations")
-    public ResponseEntity<java.util.Set<String>> getDestinations() {
+    public ResponseEntity<Set<String>> getDestinations() {
         return ResponseEntity.ok(pathPlanningService.getAvailableDestinations());
     }
 
-    /** 待抢单列表（快递员可见） */
     @GetMapping("/pending")
     @PreAuthorize("hasRole('COURIER')")
     public ResponseEntity<List<DeliveryTask>> listPending() {
         return ResponseEntity.ok(deliveryService.findPendingForGrab());
     }
 
-    /** 悬赏任务大厅：待接单列表（学生/快递员可见） */
     @GetMapping("/reward/pending")
     @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
-    public ResponseEntity<List<DeliveryTask>> listPendingRewards() {
-        return ResponseEntity.ok(deliveryService.listPendingRewardTasks());
+    public ResponseEntity<List<Map<String, Object>>> listPendingRewards() {
+        return ResponseEntity.ok(deliveryService.listPendingRewardTasks().stream().map(this::toRewardView).toList());
     }
 
-    /** 我接到的悬赏任务（学生/快递员可见） */
     @GetMapping("/reward/my")
     @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
-    public ResponseEntity<List<DeliveryTask>> listMyRewards(
-            @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(deliveryService.listMyRewardTasks(user.getUsername()));
+    public ResponseEntity<List<Map<String, Object>>> listMyRewards(@AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.listMyRewardTasks(user.getUsername()).stream().map(this::toRewardView).toList());
     }
 
-    /** 我发布的悬赏任务（学生可见） */
     @GetMapping("/reward/published")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<List<DeliveryTask>> listPublishedRewards(
-            @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(deliveryService.listPublishedRewardTasks(user.getUsername()));
+    public ResponseEntity<List<Map<String, Object>>> listPublishedRewards(@AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(deliveryService.listPublishedRewardTasks(user.getUsername()).stream().map(this::toRewardView).toList());
     }
 
-    /** 我的配送任务（快递员可见） */
     @GetMapping("/my")
     @PreAuthorize("hasRole('COURIER')")
-    public ResponseEntity<List<DeliveryTask>> listMyDeliveries(
-            @AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<List<DeliveryTask>> listMyDeliveries(@AuthenticationPrincipal UserDetails user) {
         return ResponseEntity.ok(deliveryService.findByCourierUsername(user.getUsername()));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
-    public ResponseEntity<List<DeliveryTask>> listDeliveries(
-            @RequestParam(required = false) String status) {
+    public ResponseEntity<List<DeliveryTask>> listDeliveries(@RequestParam(required = false) String status) {
         if (status != null && !status.isEmpty()) {
             try {
-                return ResponseEntity.ok(
-                    deliveryService.findByStatus(DeliveryTask.TaskStatus.valueOf(status)));
+                return ResponseEntity.ok(deliveryService.findByStatus(DeliveryTask.TaskStatus.valueOf(status)));
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
             }
@@ -79,101 +75,140 @@ public class DeliveryController {
         return ResponseEntity.ok(deliveryService.findAll());
     }
 
-    /** 学生端预约配送：学生为自己的包裹预约上门配送 */
     @PostMapping("/schedule")
     public ResponseEntity<DeliveryTask> scheduleDelivery(
-            @RequestBody Map<String, Object> request,
-            @AuthenticationPrincipal UserDetails user) {
-        Long packageId = Long.valueOf(request.get("packageId").toString());
-        String destination = request.get("destination").toString();
-        DeliveryTask task = deliveryService.scheduleDeliveryForStudent(
-            packageId, destination, user.getUsername());
-        return ResponseEntity.ok(task);
+        @RequestBody Map<String, Object> request,
+        @AuthenticationPrincipal UserDetails user
+    ) {
+        Long packageId = Long.valueOf(String.valueOf(request.get("packageId")));
+        String destination = String.valueOf(request.get("destination"));
+        return ResponseEntity.ok(deliveryService.scheduleDeliveryForStudent(packageId, destination, user.getUsername()));
     }
 
-    /** 学生发布悬赏代取 */
     @PostMapping("/reward/publish")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<DeliveryTask> publishReward(
-            @RequestBody Map<String, Object> request,
-            @AuthenticationPrincipal UserDetails user) {
-        Long packageId = Long.valueOf(request.get("packageId").toString());
-        String destination = request.get("destination").toString();
-        java.math.BigDecimal rewardAmount = new java.math.BigDecimal(request.get("rewardAmount").toString());
-        return ResponseEntity.ok(deliveryService.publishRewardTask(
-            packageId, destination, rewardAmount, user.getUsername()));
+        @RequestBody Map<String, Object> request,
+        @AuthenticationPrincipal UserDetails user
+    ) {
+        Long packageId = Long.valueOf(String.valueOf(request.get("packageId")));
+        String destination = String.valueOf(request.get("destination"));
+        BigDecimal rewardAmount = new BigDecimal(String.valueOf(request.get("rewardAmount")));
+        return ResponseEntity.ok(deliveryService.publishRewardTask(packageId, destination, rewardAmount, user.getUsername()));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> createDelivery(@RequestBody Map<String, Object> request) {
-        Long packageId = Long.valueOf(request.get("packageId").toString());
-        String destination = request.get("destination").toString();
-        DeliveryTask task = deliveryService.createDeliveryTask(packageId, destination);
-        return ResponseEntity.ok(task);
+        Long packageId = Long.valueOf(String.valueOf(request.get("packageId")));
+        String destination = String.valueOf(request.get("destination"));
+        return ResponseEntity.ok(deliveryService.createDeliveryTask(packageId, destination));
     }
 
-    /** 悬赏任务接单（学生/快递员） */
     @PutMapping("/reward/{id}/accept")
     @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> acceptReward(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
         return ResponseEntity.ok(deliveryService.acceptRewardTask(id, user.getUsername()));
     }
 
-    /** 悬赏任务取消（发布者） */
     @PutMapping("/reward/{id}/cancel")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<DeliveryTask> cancelReward(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
         return ResponseEntity.ok(deliveryService.cancelRewardTask(id, user.getUsername()));
     }
 
-    /** 悬赏任务完成并结算（接单人） */
     @PutMapping("/reward/{id}/complete")
     @PreAuthorize("hasRole('STUDENT') or hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> completeReward(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
         return ResponseEntity.ok(deliveryService.completeRewardTask(id, user.getUsername()));
     }
 
-    /** 快递员抢单：将待分配任务抢为自己执行 */
     @PutMapping("/{id}/grab")
     @PreAuthorize("hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> grabTask(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
-        DeliveryTask task = deliveryService.grabTask(id, user.getUsername());
-        return ResponseEntity.ok(task);
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
+        return ResponseEntity.ok(deliveryService.grabTask(id, user.getUsername()));
     }
 
-    /** 快递员开始配送 */
     @PutMapping("/{id}/start")
     @PreAuthorize("hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> startDelivery(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails user) {
-        DeliveryTask task = deliveryService.startDelivery(id, user.getUsername());
-        return ResponseEntity.ok(task);
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails user
+    ) {
+        return ResponseEntity.ok(deliveryService.startDelivery(id, user.getUsername()));
     }
 
     @PutMapping("/{id}/assign")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DeliveryTask> assignCourier(
-            @PathVariable Long id,
-            @RequestBody Map<String, Long> request) {
-        Long courierId = request.get("courierId");
-        DeliveryTask task = deliveryService.assignCourier(id, courierId);
-        return ResponseEntity.ok(task);
+        @PathVariable Long id,
+        @RequestBody Map<String, Long> request
+    ) {
+        return ResponseEntity.ok(deliveryService.assignCourier(id, request.get("courierId")));
     }
 
     @PutMapping("/{id}/complete")
     @PreAuthorize("hasRole('ADMIN') or hasRole('COURIER')")
     public ResponseEntity<DeliveryTask> completeDelivery(@PathVariable Long id) {
-        DeliveryTask task = deliveryService.completeDelivery(id);
-        return ResponseEntity.ok(task);
+        return ResponseEntity.ok(deliveryService.completeDelivery(id));
+    }
+
+    private Map<String, Object> toRewardView(DeliveryTask task) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", task.getId());
+        result.put("packageId", task.getPackageId());
+        result.put("publisherId", task.getPublisherId());
+        result.put("courierId", task.getCourierId());
+        result.put("destination", task.getDestination());
+        result.put("rewardAmount", task.getRewardAmount());
+        result.put("status", task.getStatus());
+        result.put("type", task.getType());
+        result.put("estimatedDistance", task.getEstimatedDistance());
+        result.put("estimatedTime", task.getEstimatedTime());
+        result.put("createdAt", task.getCreatedAt());
+
+        if (task.getPublisherId() != null) {
+            userRepository.findById(task.getPublisherId()).ifPresent(user -> {
+                result.put("publisherMaskedName", maskName(user));
+                result.put("publisherMaskedPhone", maskPhone(user.getPhone()));
+            });
+        }
+
+        return result;
+    }
+
+    private String maskName(User user) {
+        String source = user.getRealName() != null && !user.getRealName().isBlank()
+            ? user.getRealName()
+            : user.getUsername();
+        if (source == null || source.isBlank()) {
+            return "匿名用户";
+        }
+        if (source.length() == 1) {
+            return source + "*";
+        }
+        return source.charAt(0) + "**";
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return "未绑定手机号";
+        }
+        if (phone.length() < 7) {
+            return "****";
+        }
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }

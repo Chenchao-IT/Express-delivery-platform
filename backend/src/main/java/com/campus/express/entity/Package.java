@@ -38,6 +38,9 @@ public class Package {
     @Column(name = "shelf_code", length = 20)
     private String shelfCode;
 
+    @Column(name = "pickup_code", length = 12)
+    private String pickupCode;
+
     @Column(name = "storage_time")
     private LocalDateTime storageTime;
 

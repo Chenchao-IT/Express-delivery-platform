@@ -32,33 +32,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private EmergencyPassAuthService emergencyPassAuthService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
+    ) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
 
             if (emergencyPassAuthService != null && emergencyPassAuthService.isEmergencyMode()) {
                 EmergencyPassAuthService.EmergencyAuthResult result = emergencyPassAuthService.authenticate(request, jwt);
-                if (result.getStatus() == EmergencyPassAuthService.EmergencyAuthResult.NORMAL) {
-                    // 非紧急或路径不在策略内，走正常流程
-                } else if (result.getStatus() == EmergencyPassAuthService.EmergencyAuthResult.GRANTED_NO_AUTH) {
+                if (result.getStatus() == EmergencyPassAuthService.EmergencyAuthResult.GRANTED_NO_AUTH) {
                     filterChain.doFilter(request, response);
                     return;
-                } else if (result.getStatus() == EmergencyPassAuthService.EmergencyAuthResult.GRANTED && result.getUsername() != null) {
+                }
+                if (result.getStatus() == EmergencyPassAuthService.EmergencyAuthResult.GRANTED && result.getUsername() != null) {
                     try {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(result.getUsername());
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                        );
                         auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     } catch (Exception e) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.getWriter().write("{\"message\":\"紧急模式：用户不存在\"}");
+                        response.getWriter().write("{\"message\":\"紧急模式下用户不存在\"}");
                         return;
                     }
                     filterChain.doFilter(request, response);
                     return;
-                } else {
+                }
+                if (result.getStatus() != EmergencyPassAuthService.EmergencyAuthResult.NORMAL) {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.getWriter().write("{\"message\":\"" + (result.getMessage() != null ? result.getMessage() : "未授权") + "\"}");
                     return;
@@ -75,23 +81,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
                 }
+
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
-                UserDetails userDetails;
-                try {
-                    userDetails = userDetailsService.loadUserByUsername(username);
-                } catch (Exception e) {
-                    // 文档 2.2：关键冲突时可能仅凭 token 访问申诉接口，用 token 内 username+userId 设最小认证
-                    if (userId != null && StringUtils.hasText(username)) {
-                        userDetails = CustomUserDetails.fromToken(username, userId);
-                    } else {
-                        throw e;
-                    }
-                }
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {

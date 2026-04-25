@@ -8,7 +8,6 @@ import com.campus.express.dto.LoginRequest;
 import com.campus.express.dto.LoginResponse;
 import com.campus.express.dto.RegisterRequest;
 import com.campus.express.service.AuthService;
-import com.campus.express.service.MinimalPermissionAuthService;
 import com.campus.express.service.SlideCaptchaService;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,7 +25,6 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
-    private final MinimalPermissionAuthService minimalPermissionAuthService;
     private final LoginRateLimiterService loginRateLimiter;
     private final SlideCaptchaService slideCaptchaService;
     private final MeterRegistry meterRegistry;
@@ -84,7 +82,7 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("success", false, "message", "该设备登录尝试过于频繁，请" + waitSec + "秒后再试"));
             }
-            LoginResponse response = minimalPermissionAuthService.loginWithConflictResolution(request);
+            LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
         } finally {
             sample.stop(authLoginTimer);

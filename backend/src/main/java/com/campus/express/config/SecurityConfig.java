@@ -56,8 +56,8 @@ public class SecurityConfig {
                 .requestMatchers("/auth/login", "/auth/register").permitAll()
                 .requestMatchers("/auth/rate-limit/clear").permitAll()
                 .requestMatchers("/auth/captcha", "/auth/captcha/verify").permitAll()
+                .requestMatchers(HttpMethod.GET, "/notifications/stream").permitAll()
                 .requestMatchers("/auth/**").authenticated()
-                .requestMatchers("/admin/appeals/**").hasRole("ADMIN")
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated())
@@ -69,7 +69,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        config.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:17777",
+            "http://127.0.0.1:17777"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
