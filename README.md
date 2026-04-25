@@ -20,6 +20,7 @@
 - **JDK 17**（必须是 JDK，不能只用 JRE）
 - MySQL 8.0
 - Node.js 18+
+- Redis（可选：默认不需要）
 
 > 若出现 "No compiler" 或 "JAVA_HOME is not defined" 错误，请先设置环境变量后重启终端，或直接双击 `backend/set-java-and-run.bat` 启动。
 
@@ -66,7 +67,44 @@ npm install
 npm run dev
 ```
 
-访问 http://localhost:5173
+访问 `http://localhost:17777`
+
+## 常见问题（必看）
+
+### 1) 登录提示 `Invalid CORS request`
+
+原因：前端开发服务器端口是 `17777`，后端需要允许该 Origin。
+
+解决：已在后端 CORS 白名单中加入：
+
+- `http://localhost:17777`
+- `http://127.0.0.1:17777`
+
+如你自行改了前端端口，请同步更新 `backend/src/main/java/com/campus/express/config/SecurityConfig.java` 的 `allowedOrigins`，然后**重启后端**。
+
+### 2) 登录接口返回 `{ success:false, message:"Unable to connect to Redis" }`
+
+原因：本机未启动 Redis，但后端尝试连接 Redis（用于登录限流/登录版本等）。
+
+解决（推荐）：启动 Redis，然后重启后端（默认连接 `localhost:6379`）。
+
+如你需要启用 Redis：
+
+- 启动本机 Redis（默认 `6379`），或设置环境变量 `REDIS_HOST`
+- 或使用 profile：`mvn spring-boot:run -Dspring-boot.run.profiles=no-redis`（强制不加载 Redis 自动配置）
+
+### 3) 登录后直接跳转 `/403` 看不到 Network
+
+原因：前端对任意 403 响应会自动跳转到 `/403`。
+
+调试方法（开发环境）：在浏览器控制台执行后刷新页面：
+
+```js
+localStorage.setItem('debug:disable403Redirect', '1')
+location.reload()
+```
+
+之后触发 403 时不会跳转，会在 Console 打印出触发 403 的接口 URL，便于定位是哪个角色/接口权限不匹配。
 
 ### 5. 默认账号
 

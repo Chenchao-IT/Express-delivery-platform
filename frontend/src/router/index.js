@@ -14,6 +14,12 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/403',
+    name: 'Forbidden',
+    component: () => import('@/views/ForbiddenView.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
@@ -22,11 +28,6 @@ const routes = [
         path: '',
         name: 'Dashboard',
         component: () => import('@/views/PackageCenterView.vue'),
-      },
-      {
-        path: 'packages',
-        name: 'MyPackages',
-        component: () => import('@/views/MyPackagesView.vue'),
       },
       {
         path: 'track',
@@ -39,14 +40,20 @@ const routes = [
         component: () => import('@/views/TaskHallView.vue'),
       },
       {
-        path: 'appeal',
-        name: 'Appeal',
-        component: () => import('@/views/AppealView.vue'),
+        path: 'notifications',
+        name: 'Notifications',
+        component: () => import('@/views/NotificationsView.vue'),
       },
       {
         path: 'admin/packages',
         name: 'AdminPackages',
         component: () => import('@/views/admin/PackageManageView.vue'),
+        meta: { roles: ['ADMIN', 'COURIER'] },
+      },
+      {
+        path: 'admin/deliveries',
+        name: 'AdminDeliveries',
+        component: () => import('@/views/admin/DeliveryManageView.vue'),
         meta: { roles: ['ADMIN', 'COURIER'] },
       },
       {
@@ -56,21 +63,9 @@ const routes = [
         meta: { roles: ['ADMIN'] },
       },
       {
-        path: 'admin/deliveries',
-        name: 'AdminDeliveries',
-        component: () => import('@/views/admin/DeliveryManageView.vue'),
-        meta: { roles: ['ADMIN', 'COURIER'] },
-      },
-      {
         path: 'admin/users',
         name: 'AdminUsers',
         component: () => import('@/views/admin/UserManageView.vue'),
-        meta: { roles: ['ADMIN'] },
-      },
-      {
-        path: 'admin/appeals',
-        name: 'AdminAppeals',
-        component: () => import('@/views/admin/AppealManageView.vue'),
         meta: { roles: ['ADMIN'] },
       },
     ],
@@ -91,15 +86,18 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const user = JSON.parse(localStorage.getItem('user') || 'null')
 
-  if (to.meta.guest && token) {
+  if (to.meta.guest && token && to.name !== 'Forbidden') {
     return next({ name: 'Dashboard' })
   }
+
   if (to.meta.requiresAuth && !token) {
     return next({ name: 'Login', query: { redirect: to.fullPath } })
   }
+
   if (to.meta.roles && user && !to.meta.roles.includes(user.role)) {
-    return next({ name: 'Dashboard' })
+    return next({ name: 'Forbidden', query: { from: to.fullPath } })
   }
+
   next()
 })
 

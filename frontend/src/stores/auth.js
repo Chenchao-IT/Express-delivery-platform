@@ -1,5 +1,5 @@
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import { login as loginApi, register as registerApi } from '@/api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -11,26 +11,20 @@ export const useAuthStore = defineStore('auth', () => {
   const isCourier = computed(() => user.value?.role === 'COURIER')
   const isStudent = computed(() => user.value?.role === 'STUDENT')
 
-  const login = async (credentials) => {
+  async function login(credentials) {
     const res = await loginApi(credentials)
     token.value = res.token
-    // 文档 2.2：支持正常登录、非关键冲突(hasConflicts)、关键冲突需申诉(conflictResolutionRequired)
     user.value = {
       username: res.username,
       role: res.role,
       realName: res.realName,
-      hasConflicts: res.hasConflicts ?? false,
-      conflictResolutionRequired: res.conflictResolutionRequired ?? false,
-      shadowId: res.shadowId,
-      minimalPermissions: res.minimalPermissions,
-      authMessage: res.message,
     }
     localStorage.setItem('token', res.token)
     localStorage.setItem('user', JSON.stringify(user.value))
     return res
   }
 
-  const register = async (data) => {
+  async function register(data) {
     const res = await registerApi(data)
     token.value = res.token
     user.value = {
@@ -43,7 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
     return res
   }
 
-  const logout = () => {
+  function logout() {
     token.value = ''
     user.value = null
     localStorage.removeItem('token')

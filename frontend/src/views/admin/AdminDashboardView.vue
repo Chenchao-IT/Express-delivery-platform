@@ -1,197 +1,217 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-bold text-text-primary mb-6">管理数据大屏</h1>
-
-    <!-- 顶部统计卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white rounded-card shadow-card p-5">
-        <p class="text-text-secondary text-xs mb-1">包裹总数</p>
-        <p class="text-2xl font-bold text-text-primary">{{ stats.total }}</p>
+  <div class="space-y-6">
+    <section class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Visual Dashboard</p>
+        <h1 class="mt-2 text-3xl font-bold text-slate-900">数据大屏</h1>
+        <p class="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
+          结合论文中的“今日处理量、滞留率、配送任务态势”等要求，对包裹与配送任务进行可视化统计。
+        </p>
       </div>
-      <div class="bg-white rounded-card shadow-card p-5">
-        <p class="text-text-secondary text-xs mb-1">在库包裹</p>
-        <p class="text-2xl font-bold text-brand">{{ stats.inStorage }}</p>
-      </div>
-      <div class="bg-white rounded-card shadow-card p-5">
-        <p class="text-text-secondary text-xs mb-1">配送中/待送达</p>
-        <p class="text-2xl font-bold text-warning-text">{{ stats.moving }}</p>
-      </div>
-      <div class="bg-white rounded-card shadow-card p-5">
-        <p class="text-text-secondary text-xs mb-1">已完成（签收+退回）</p>
-        <p class="text-2xl font-bold text-success">{{ stats.finished }}</p>
-      </div>
-    </div>
+      <button type="button" class="primary-cta h-11 px-4" :disabled="loading" @click="load">
+        {{ loading ? '刷新中...' : '刷新大屏' }}
+      </button>
+    </section>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-      <!-- 状态分布“饼图”（环形条） -->
-      <div class="bg-white rounded-card shadow-card p-6 lg:col-span-1">
-        <h2 class="font-semibold text-text-primary mb-4">包裹状态分布</h2>
-        <div v-if="stats.total === 0" class="text-center py-10 text-text-tertiary text-sm">
-          暂无包裹数据
-        </div>
-        <div v-else>
-          <div class="flex items-center justify-between text-xs text-text-secondary mb-3">
-            <span>在库</span>
-            <span>{{ stats.inStorage }} 件</span>
-          </div>
-          <div class="h-2 rounded-full bg-fill-border mb-4 overflow-hidden">
-            <div
-              class="h-full bg-brand transition-all duration-500"
-              :style="{ width: percent(stats.inStorage) + '%' }"
-            />
-          </div>
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <article v-for="item in overviewCards" :key="item.key" class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <p class="text-sm text-slate-500">{{ item.label }}</p>
+        <p class="mt-4 text-4xl font-bold text-slate-900">{{ item.value }}</p>
+        <p class="mt-2 text-sm text-slate-500">{{ item.hint }}</p>
+      </article>
+    </section>
 
-          <div class="flex items-center justify-between text-xs text-text-secondary mb-3">
-            <span>配送中/待送达</span>
-            <span>{{ stats.moving }} 件</span>
-          </div>
-          <div class="h-2 rounded-full bg-fill-border mb-4 overflow-hidden">
-            <div
-              class="h-full bg-warning/60 transition-all duration-500"
-              :style="{ width: percent(stats.moving) + '%' }"
-            />
-          </div>
+    <section class="grid gap-6 xl:grid-cols-2">
+      <article class="panel-card">
+        <h2 class="panel-title">包裹状态分布</h2>
+        <p class="panel-subtitle">用于观察当前驿站积压量与流转效率。</p>
 
-          <div class="flex items-center justify-between text-xs text-text-secondary mb-3">
-            <span>已完成</span>
-            <span>{{ stats.finished }} 件</span>
-          </div>
-          <div class="h-2 rounded-full bg-fill-border overflow-hidden">
-            <div
-              class="h-full bg-success/70 transition-all duration-500"
-              :style="{ width: percent(stats.finished) + '%' }"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- 近 7 天入库量条形图 -->
-      <div class="bg-white rounded-card shadow-card p-6 lg:col-span-2">
-        <h2 class="font-semibold text-text-primary mb-4">近 7 天入库趋势</h2>
-        <div v-if="dailyTrend.length === 0" class="text-center py-10 text-text-tertiary text-sm">
-          暂无近 7 天入库记录
-        </div>
-        <div v-else class="h-56 flex items-end gap-3">
-          <div
-            v-for="d in dailyTrend"
-            :key="d.date"
-            class="flex-1 flex flex-col items-center justify-end"
-          >
-            <div
-              class="w-full rounded-t-md bg-brand/60 hover:bg-brand transition-colors"
-              :style="{ height: barHeight(d.count) + '%' }"
-            ></div>
-            <div class="mt-2 text-[11px] text-text-tertiary text-center leading-tight">
-              <div>{{ d.label }}</div>
-              <div>{{ d.count }}</div>
+        <div class="mt-6 space-y-4">
+          <div v-for="item in packageBars" :key="item.key">
+            <div class="mb-2 flex items-center justify-between text-sm text-slate-500">
+              <span>{{ item.label }}</span>
+              <span>{{ item.value }}</span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-slate-100">
+              <div class="h-full rounded-full" :class="item.barClass" :style="{ width: `${item.percent}%` }" />
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </article>
 
-    <!-- 底部：配送任务概览 -->
-    <div class="bg-white rounded-card shadow-card p-6">
-      <h2 class="font-semibold text-text-primary mb-4">配送任务概览</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <p class="text-text-secondary mb-1">任务总数</p>
-          <p class="text-lg font-semibold text-text-primary">{{ deliveryStats.total }}</p>
+      <article class="panel-card">
+        <h2 class="panel-title">配送任务概览</h2>
+        <p class="panel-subtitle">展示待处理、配送中与已完成任务数量。</p>
+
+        <div class="mt-6 grid grid-cols-2 gap-4">
+          <div v-for="item in deliveryCards" :key="item.key" class="rounded-[24px] bg-slate-50 p-4">
+            <p class="text-xs text-slate-400">{{ item.label }}</p>
+            <p class="mt-3 text-2xl font-semibold text-slate-900">{{ item.value }}</p>
+          </div>
         </div>
-        <div>
-          <p class="text-text-secondary mb-1">待分配</p>
-          <p class="text-lg font-semibold text-warning-text">{{ deliveryStats.pending }}</p>
-        </div>
-        <div>
-          <p class="text-text-secondary mb-1">配送中</p>
-          <p class="text-lg font-semibold text-brand">{{ deliveryStats.inProgress }}</p>
-        </div>
-        <div>
-          <p class="text-text-secondary mb-1">已完成</p>
-          <p class="text-lg font-semibold text-success">{{ deliveryStats.completed }}</p>
+      </article>
+    </section>
+
+    <section class="panel-card">
+      <h2 class="panel-title">近 7 天入库趋势</h2>
+      <p class="panel-subtitle">辅助观察日均处理量与入库峰值。</p>
+
+      <div v-if="dailyTrend.length === 0" class="empty-state mt-6">
+        <div class="text-5xl">📈</div>
+        <h3 class="mt-5 text-2xl font-semibold text-slate-900">暂无趋势数据</h3>
+        <p class="mt-3 text-sm leading-7 text-slate-500">当系统存在近 7 天入库记录时，这里会展示每日统计。</p>
+      </div>
+
+      <div v-else class="mt-6 flex h-64 items-end gap-4">
+        <div v-for="item in dailyTrend" :key="item.date" class="flex flex-1 flex-col items-center justify-end">
+          <div class="w-full rounded-t-xl bg-brand/70 transition hover:bg-brand" :style="{ height: `${item.height}%` }" />
+          <p class="mt-3 text-xs text-slate-400">{{ item.label }}</p>
+          <p class="mt-1 text-sm font-medium text-slate-900">{{ item.count }}</p>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { listPackages } from '@/api/package'
 import { listDeliveries } from '@/api/delivery'
 
-const rawPackages = ref([])
-const rawDeliveries = ref([])
+const loading = ref(false)
+const packages = ref([])
+const deliveries = ref([])
 
-const stats = computed(() => {
-  const total = rawPackages.value.length
-  let inStorage = 0
-  let moving = 0
-  let finished = 0
+const packageStats = computed(() => {
+  const result = {
+    total: packages.value.length,
+    inStorage: 0,
+    delivering: 0,
+    finished: 0,
+  }
 
-  rawPackages.value.forEach((p) => {
-    if (p.status === 'IN_STORAGE') inStorage++
-    else if (p.status === 'OUT_FOR_DELIVERY' || p.status === 'DELIVERED') moving++
-    else if (p.status === 'PICKED_UP' || p.status === 'RETURNED' || p.status === 'COMPLETED') finished++
+  packages.value.forEach((pkg) => {
+    if (pkg.status === 'IN_STORAGE') result.inStorage += 1
+    else if (pkg.status === 'OUT_FOR_DELIVERY') result.delivering += 1
+    else if (['DELIVERED', 'PICKED_UP', 'COMPLETED'].includes(pkg.status)) result.finished += 1
   })
 
-  return { total, inStorage, moving, finished }
+  return result
 })
 
 const deliveryStats = computed(() => {
-  const total = rawDeliveries.value.length
-  let pending = 0
-  let inProgress = 0
-  let completed = 0
+  const result = {
+    total: deliveries.value.length,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+  }
 
-  rawDeliveries.value.forEach((d) => {
-    if (d.status === 'PENDING' || d.status === 'ASSIGNED') pending++
-    else if (d.status === 'IN_PROGRESS') inProgress++
-    else if (d.status === 'COMPLETED') completed++
+  deliveries.value.forEach((item) => {
+    if (item.status === 'PENDING' || item.status === 'ASSIGNED') result.pending += 1
+    else if (item.status === 'IN_PROGRESS') result.inProgress += 1
+    else if (item.status === 'COMPLETED') result.completed += 1
   })
 
-  return { total, pending, inProgress, completed }
+  return result
 })
 
+const retentionRate = computed(() => {
+  if (!packageStats.value.total) return '0%'
+  return `${Math.round((packageStats.value.inStorage / packageStats.value.total) * 100)}%`
+})
+
+const overviewCards = computed(() => [
+  {
+    key: 'total',
+    label: '包裹总量',
+    value: packageStats.value.total,
+    hint: '系统内全部包裹记录',
+  },
+  {
+    key: 'inStorage',
+    label: '当前滞留',
+    value: packageStats.value.inStorage,
+    hint: `驿站滞留率 ${retentionRate.value}`,
+  },
+  {
+    key: 'task',
+    label: '配送任务',
+    value: deliveryStats.value.total,
+    hint: '覆盖预约配送与调度统计',
+  },
+  {
+    key: 'completed',
+    label: '已完成流转',
+    value: packageStats.value.finished,
+    hint: '已送达或已签收包裹',
+  },
+])
+
+const packageBars = computed(() => {
+  const total = packageStats.value.total || 1
+  return [
+    {
+      key: 'inStorage',
+      label: '待取件 / 滞留',
+      value: packageStats.value.inStorage,
+      percent: Math.round((packageStats.value.inStorage / total) * 100),
+      barClass: 'bg-amber-400',
+    },
+    {
+      key: 'delivering',
+      label: '配送中',
+      value: packageStats.value.delivering,
+      percent: Math.round((packageStats.value.delivering / total) * 100),
+      barClass: 'bg-brand',
+    },
+    {
+      key: 'finished',
+      label: '已完成',
+      value: packageStats.value.finished,
+      percent: Math.round((packageStats.value.finished / total) * 100),
+      barClass: 'bg-emerald-500',
+    },
+  ]
+})
+
+const deliveryCards = computed(() => [
+  { key: 'pending', label: '待处理任务', value: deliveryStats.value.pending },
+  { key: 'progress', label: '配送中任务', value: deliveryStats.value.inProgress },
+  { key: 'completed', label: '已完成任务', value: deliveryStats.value.completed },
+  { key: 'retention', label: '驿站滞留率', value: retentionRate.value },
+])
+
 const dailyTrend = computed(() => {
-  if (!rawPackages.value.length) return []
-  const map = new Map()
-  rawPackages.value.forEach((p) => {
-    if (!p.storageTime) return
-    const date = p.storageTime.substring(0, 10)
-    map.set(date, (map.get(date) || 0) + 1)
+  const grouped = new Map()
+  packages.value.forEach((pkg) => {
+    if (!pkg.storageTime) return
+    const date = String(pkg.storageTime).slice(0, 10)
+    grouped.set(date, (grouped.get(date) || 0) + 1)
   })
 
-  // 最近 7 天（按日期排序后取最后 7 个）
-  const entries = Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? -1 : 1))
-  const last7 = entries.slice(-7)
-  return last7.map(([date, count]) => ({
-    date,
-    count,
-    label: date.slice(5), // MM-dd
+  const items = Array.from(grouped.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7)
+    .map(([date, count]) => ({ date, count, label: date.slice(5) }))
+
+  const max = Math.max(...items.map((item) => item.count), 1)
+  return items.map((item) => ({
+    ...item,
+    height: Math.max(12, Math.round((item.count / max) * 100)),
   }))
 })
 
-const percent = (value) => {
-  if (!stats.value.total) return 0
-  return Math.round((value / stats.value.total) * 100)
-}
-
-const barHeight = (value) => {
-  if (!dailyTrend.value.length) return 0
-  const max = Math.max(...dailyTrend.value.map((d) => d.count))
-  if (!max) return 5
-  return Math.max(10, Math.round((value / max) * 100))
-}
-
-onMounted(async () => {
+async function load() {
+  loading.value = true
   try {
-    // 已有接口：管理员角色可拉取全部包裹和任务
-    rawPackages.value = await listPackages()
-    rawDeliveries.value = await listDeliveries()
-  } catch (e) {
-    console.error(e)
+    const [pkgList, taskList] = await Promise.all([listPackages(), listDeliveries()])
+    packages.value = Array.isArray(pkgList) ? pkgList : []
+    deliveries.value = Array.isArray(taskList) ? taskList : []
+  } finally {
+    loading.value = false
   }
-})
-</script>
+}
 
+onMounted(load)
+</script>
